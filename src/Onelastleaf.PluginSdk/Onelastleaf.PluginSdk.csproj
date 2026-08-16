@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>Onelastleaf.PluginSdk</PackageId>
+    <Version>0.1.0</Version>
+    <Description>.NET SDK for onelastleaf process plugins</Description>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/onelastleaf/dotnet-plugin-sdk</RepositoryUrl>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Onelastleaf.PluginSdk.Tests" />
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.71.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.72.0" PrivateAssets="All" />
+    <Protobuf Include="../../proto/oll/common.proto" GrpcServices="None" ProtoRoot="../../proto" />
+    <Protobuf Include="../../proto/oll/config.proto" GrpcServices="None" ProtoRoot="../../proto" />
+    <Protobuf Include="../../proto/oll/document.proto" GrpcServices="None" ProtoRoot="../../proto" />
+    <Protobuf Include="../../proto/oll/plugin.proto" GrpcServices="Client" ProtoRoot="../../proto" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
