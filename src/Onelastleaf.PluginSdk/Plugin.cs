@@ -8,7 +8,7 @@ namespace Onelastleaf.PluginSdk;
 
 public sealed class Plugin
 {
-    public const string ProtocolSchemaSha256 = "21c145638fbe6a1f2d9a2cb2114403d4bee4da3c0adbac09e805a98a77d0d4da";
+    public const string ProtocolSchemaSha256 = "9b236b37455965858413f5717a88e28568a459e81e87a28ff77be8845bcff75a";
     private const int MaximumEnvelopeBytes = 64 * 1024 * 1024;
     private readonly Dictionary<string, RegisteredAction> _actions = [];
 
@@ -75,9 +75,11 @@ public sealed class Plugin
             lastHostMessageId = first.MessageId;
             if (first.HasReplyTo || first.PayloadCase != PluginEnvelope.PayloadOneofCase.HostHello)
                 throw new InvalidOperationException("HostHello must be the first host message");
+            if (first.SessionId.Length == 0 || first.PluginInstanceId.Length == 0)
+                throw new InvalidOperationException("HostHello envelope omitted its session or instance identity");
             ValidateHello(first.HostHello);
             ValidateTrace(first.Trace, first.HostHello.MaximumCallDepth, first.HostHello.MaximumCausalDepth);
-            sender.SetIdentity(first.HostHello.SessionId, first.HostHello.PluginInstanceId);
+            sender.SetIdentity(first.SessionId, first.PluginInstanceId);
             var hello = new PluginHello
             {
                 PluginId = new PluginId { Value = Id },
@@ -247,7 +249,7 @@ public sealed class Plugin
 
     private void ValidateHello(HostHello hello)
     {
-        if (hello.Node is null || hello.SessionId.Length == 0 || hello.PluginInstanceId.Length == 0
+        if (hello.Node is null
             || hello.ProtocolSchemaSha256 != Google.Protobuf.ByteString.CopyFrom(Convert.FromHexString(ProtocolSchemaSha256))
             || hello.PluginId?.Value != Id || string.IsNullOrEmpty(hello.PluginName?.Value)
             || hello.MaximumCallDepth == 0 || hello.MaximumCausalDepth == 0
