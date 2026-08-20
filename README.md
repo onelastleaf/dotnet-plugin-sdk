@@ -153,6 +153,15 @@ used by these calls are available in the `Oll.Protocol` namespace. See
 examples of configuration functions, document reads, structured logs,
 cancellation, and artifact transfer.
 
+## Protocol evolution
+
+This SDK follows the canonical protobuf wire contract. It never computes,
+embeds, publishes, or compares a schema hash or fingerprint. Descriptor-wide
+hashes change for compatible additions and unrelated services, so they reject
+valid peers. Protocol changes instead preserve field numbers and wire types,
+give additions safe absent semantics, and tolerate unknown fields. Exact SDK
+pins provide reproducible builds; they are not protobuf API versioning.
+
 ## Runtime model in one minute
 
 - Plugins are trusted, independent child processes.

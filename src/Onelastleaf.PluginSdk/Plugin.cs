@@ -8,7 +8,6 @@ namespace Onelastleaf.PluginSdk;
 
 public sealed class Plugin
 {
-    public const string ProtocolSchemaSha256 = "9b236b37455965858413f5717a88e28568a459e81e87a28ff77be8845bcff75a";
     private const int MaximumEnvelopeBytes = 64 * 1024 * 1024;
     private readonly Dictionary<string, RegisteredAction> _actions = [];
 
@@ -84,7 +83,6 @@ public sealed class Plugin
             {
                 PluginId = new PluginId { Value = Id },
                 PluginName = first.HostHello.PluginName,
-                ProtocolSchemaSha256 = Google.Protobuf.ByteString.CopyFrom(Convert.FromHexString(ProtocolSchemaSha256)),
                 PluginVersion = Version,
             };
             hello.Actions.AddRange(_actions.Select(action => new ActionDescriptor
@@ -250,7 +248,6 @@ public sealed class Plugin
     private void ValidateHello(HostHello hello)
     {
         if (hello.Node is null
-            || hello.ProtocolSchemaSha256 != Google.Protobuf.ByteString.CopyFrom(Convert.FromHexString(ProtocolSchemaSha256))
             || hello.PluginId?.Value != Id || string.IsNullOrEmpty(hello.PluginName?.Value)
             || hello.MaximumCallDepth == 0 || hello.MaximumCausalDepth == 0
             || hello.MaximumArtifactChunkBytes == 0)
