@@ -4,7 +4,7 @@ using Onelastleaf.PluginSdk;
 
 var plugin = Plugin.Create("org.onelastleaf.conformance", "0.1.0")
     .Action("echo", "Echo arguments", (context, arguments) =>
-        Task.FromResult(ActionResult.String(string.Join(" ", arguments))))
+        Task.FromResult(ActionResult.FromString(string.Join(" ", arguments))))
     .Action("wait", "Wait for cancellation", async (context, arguments) =>
     {
         await Task.Delay(Timeout.InfiniteTimeSpan, context.CancellationToken);
@@ -33,13 +33,11 @@ var plugin = Plugin.Create("org.onelastleaf.conformance", "0.1.0")
             || read.ReadDocument.Document?.RepresentationCase
                 != DocumentSnapshot.RepresentationOneofCase.Content)
             throw new InvalidOperationException("document call omitted text content");
-        await context.Host.LogAsync(
-            context.Trace,
+        await context.LogAsync(
             LogLevel.Info,
             "conformance",
-            "host action complete",
-            cancellationToken: context.CancellationToken);
-        return ActionResult.String(
+            "host action complete");
+        return ActionResult.FromString(
             $"{invoked.Results[0].StringValue}|{read.ReadDocument.Document.Content}");
     })
     .Action("artifact", "Exercise artifact transfer", async (context, arguments) =>
@@ -56,13 +54,9 @@ var plugin = Plugin.Create("org.onelastleaf.conformance", "0.1.0")
             Sha256 = ByteString.CopyFrom(Convert.FromHexString(
                 "a11a4045c89f727fadb9aeddb0f29637ce5b505846afebd82ae2c01b6733a6b5")),
         };
-        await context.Host.StoreArtifactAsync(
-            context.Trace,
-            context.JobId,
-            descriptor,
-            ["artifact "u8.ToArray(), "payload"u8.ToArray()],
-            context.CancellationToken);
-        return new ActionResult(ActionResult.String("artifact").Result, [descriptor]);
+        using var content = new MemoryStream("artifact payload"u8.ToArray(), writable: false);
+        var stored = await context.StoreArtifactAsync(descriptor, content);
+        return new ActionResult(ActionResult.FromString("artifact").Result, [stored]);
     });
 
 await plugin.RunAsync();

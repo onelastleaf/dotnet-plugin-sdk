@@ -34,9 +34,14 @@ ScaffoldingReadMe.txt
 ~$*
 *~
 CodeCoverage/
+.humanize/
 
 # MSBuild Binary and Structured Log
 *.binlog
+
+# Native crash dumps
+core
+core.*
 
 # MSTest test Results
 [Tt]est[Rr]esult*/

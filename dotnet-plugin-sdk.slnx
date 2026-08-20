@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="examples/Conformance/Conformance.csproj" />
+  <Project Path="src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj" />
+  <Project Path="tests/Onelastleaf.PluginSdk.Tests/Onelastleaf.PluginSdk.Tests.csproj" />
+</Solution>

@@ -1,46 +1,48 @@
 # onelastleaf .NET plugin SDK
 
-Build trusted [onelastleaf](https://github.com/onelastleaf/onelastleaf) process
-plugins in C# without having to implement the gRPC session protocol yourself.
+This is the official C# SDK for trusted
+[onelastleaf](https://github.com/onelastleaf/onelastleaf) process plugins. You
+write ordinary async action handlers; the SDK takes care of the gRPC handshake,
+concurrent jobs, cancellation, shutdown, configuration calls, logging, and
+verified artifact transfer.
+
 The NuGet package is `Onelastleaf.PluginSdk`.
 
-The SDK handles the connection, handshake, concurrent jobs, cancellation,
-shutdown, logging, configuration calls, and artifact transfer. Your plugin
-registers actions and implements what those actions should do.
+## Build and test this SDK
 
-## Build and test this repository
-
-You need the .NET 10 SDK to build the whole repository. The library itself
-targets both .NET 8 and .NET 10, while its test project targets .NET 10.
-
-There is no solution file, so run the commands against the project files:
+Install the .NET 10 SDK and the .NET 8 runtime, then run the repository-wide
+checks from its root:
 
 ```sh
-dotnet build src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj \
-  --configuration Release
+dotnet restore dotnet-plugin-sdk.slnx --locked-mode
+dotnet format dotnet-plugin-sdk.slnx --no-restore --verify-no-changes
+dotnet build dotnet-plugin-sdk.slnx --configuration Release --no-restore
 dotnet test tests/Onelastleaf.PluginSdk.Tests/Onelastleaf.PluginSdk.Tests.csproj \
-  --configuration Release
+  --configuration Release --no-build
 ```
 
-You can also compile the host-driven conformance plugin and create a NuGet
-package locally:
+The library targets both .NET 8 and .NET 10, and the test suite runs against
+both targets. The conformance plugin targets .NET 10, which is why building the
+complete repository needs the .NET 10 SDK. CI runs the same format, build, test,
+and package checks with locked NuGet dependencies. If you have the .NET 10 SDK
+but not the .NET 8 runtime locally, use
+`dotnet test ... --framework net10.0`; the solution build still compiles the
+library for net8.0.
+
+To produce a package locally:
 
 ```sh
-dotnet build examples/Conformance/Conformance.csproj --configuration Release
 dotnet pack src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj \
-  --configuration Release --output artifacts
+  --configuration Release --no-build --output artifacts
 ```
 
-The package is written to `artifacts/Onelastleaf.PluginSdk.0.1.0.nupkg`.
-`examples/Conformance` is not a standalone command-line program: oll must launch
-it and provide a protocol session, so running it directly will report that
-`OLL_PLUGIN_ENDPOINT` is missing.
+The result is `artifacts/Onelastleaf.PluginSdk.0.1.0.nupkg`. The program under
+`examples/Conformance` is host-driven, not a standalone CLI. If you run it by
+hand, it will correctly report that `OLL_PLUGIN_ENDPOINT` is missing.
 
-## Create a plugin
+## Create your first plugin
 
-The easiest starting point is oll's project generator. It creates the C#
-project, a small test, and the `oll.toml` recipe that tells oll how to publish
-and launch the plugin:
+Let oll generate the project, tests, and `oll.toml` recipe together:
 
 ```sh
 oll plugin new hello-plugin \
@@ -51,33 +53,32 @@ cd hello-plugin
 dotnet test tests/Plugin.Tests.csproj
 ```
 
-The generated project depends on `Onelastleaf.PluginSdk` version `0.1.0`. A
-minimal plugin looks like this:
+The generated project references `Onelastleaf.PluginSdk` version `0.1.0`. Its
+entry point follows this shape:
 
 ```csharp
 using Onelastleaf.PluginSdk;
 
 var plugin = Plugin.Create("dev.example.hello", "0.1.0")
     .Action("echo", "Return the supplied arguments", (_, arguments) =>
-        Task.FromResult(ActionResult.String(string.Join(" ", arguments))));
+        Task.FromResult(ActionResult.FromString(string.Join(" ", arguments))));
 
 await plugin.RunAsync();
 ```
 
-The ID passed to `Plugin.Create` is permanent and must match `plugin.id` in
-`oll.toml`. Action handlers receive an `ActionContext`, the ordered string
-arguments from `oll plugin call`, and a cancellation token at
-`context.CancellationToken`. Return an `ActionResult` when the job is finished.
+`Plugin.Create` takes the permanent publisher ID from `oll.toml`, not the
+mutable display name. Register every action before calling `RunAsync`; one
+`Plugin` instance represents one process session and cannot be run twice.
 
-Do not set `OLL_PLUGIN_ENDPOINT` or start a gRPC server in your plugin. oll owns
-the loopback server, starts the plugin process, supplies that environment
-variable, and uses the plugin's standard input as a parent-liveness pipe.
-`Plugin.RunAsync()` takes care of the client side of that contract.
+Do not start a gRPC server or set `OLL_PLUGIN_ENDPOINT` yourself. oll owns an
+ephemeral loopback server, starts the plugin process, and supplies the endpoint.
+The plugin connects as the gRPC client. Its standard input is also a liveness
+pipe: EOF means the parent is gone, so the SDK cancels the session and exits.
 
-### Try local SDK changes in a generated plugin
+### Use an SDK checkout while developing
 
-While changing this SDK, you can temporarily replace the generated plugin's
-`PackageReference` with a `ProjectReference`:
+To try local SDK changes, temporarily replace the generated package reference
+with a project reference:
 
 ```xml
 <ItemGroup>
@@ -86,94 +87,157 @@ While changing this SDK, you can temporarily replace the generated plugin's
 </ItemGroup>
 ```
 
-This example assumes `hello-plugin` and `dotnet-plugin-sdk` are sibling
-directories. Adjust the path relative to `hello-plugin/src/Plugin.csproj` for
-your checkout. This is useful for `dotnet build` and `dotnet test`, but remember
-that oll installs from a fresh Git checkout. A reference to a sibling directory
-will not exist there. Before installing the plugin, use the published
-`PackageReference`, or make the package from `dotnet pack` available through a
-NuGet source that the checked-out plugin can resolve.
+That path assumes `hello-plugin` and `dotnet-plugin-sdk` are sibling folders and
+the reference lives in `hello-plugin/src/Plugin.csproj`. Adjust it for your
+layout.
 
-## Install and call the plugin through oll
+This is only a local development setup. oll installs a plugin from a fresh Git
+checkout, where a sibling project reference will not exist. Before installing,
+switch back to the published `PackageReference`, or publish the locally packed
+NuGet package through a source that the clean checkout can resolve.
 
-Commit the generated plugin to a Git repository and push it to a remote that
-oll can clone. With an initialized oll node already running, install the source,
-start the plugin, and call its `echo` action:
+## Install and call it through oll
+
+Commit the generated plugin to a Git repository that oll can clone. With an oll
+node already initialized and running:
 
 ```sh
 oll status
 oll plugin install https://github.com/your-name/hello-plugin.git --source
 oll plugin start dev.example.hello
-oll plugin call dev.example.hello echo hello from dotnet
+oll plugin call dev.example.hello echo -- hello from dotnet
 ```
 
-`oll plugin call` prints the job ID. Use it to inspect the result, or read the
-plugin's captured standard output and error:
+The call returns after oll and the plugin have admitted the job, and prints its
+job ID. Inspect the eventual result and plugin log separately:
 
 ```sh
 oll job info <job-id>
 oll plugin log dev.example.hello
 ```
 
-If you have not set up oll yet, follow the main project's
+A new installation starts in the stopped state, and a call never starts it
+implicitly. `plugin start` persists the desired running state. If oll itself is
+not set up yet, follow its
 [quick start](https://github.com/onelastleaf/onelastleaf#quick-start) first.
-`oll plugin install` accepts Git, HTTP(S), SSH, and SCP-style Git remotes; it
-does not install directly from a local working-directory path.
 
-## Calling back into oll
+## Work inside an action
 
-An action can read its current oll-managed configuration, invoke a configured
-Lua function, read documents, write structured logs, and store verified
-artifacts through `ActionContext` and `context.Host`. For example:
+Each handler receives an `ActionContext`, the exact ordered argument list, and
+an action-scoped cancellation token. Host capabilities live directly on the
+context, so application code does not need to pass raw trace state around:
 
 ```csharp
 using Oll.Protocol;
 using Onelastleaf.PluginSdk;
 
 var plugin = Plugin.Create("dev.example.hello", "0.1.0")
-    .Action("configured", "Return this plugin's configuration", async (context, _) =>
+    .Action("configured", "Read current plugin configuration", async (context, _) =>
     {
         var configured = await context.GetConfigAsync();
-        await context.Host.LogAsync(
-            context.Trace,
+        await context.LogAsync(
             LogLevel.Info,
             "hello-plugin",
-            "configuration loaded",
-            cancellationToken: context.CancellationToken);
+            "configuration loaded");
         return new ActionResult(configured.Value);
     });
 
 await plugin.RunAsync();
 ```
 
-Configuration stays in oll; it is fetched when the action asks for it rather
-than copied into the plugin as an arbitrary file. The generated protobuf types
-used by these calls are available in the `Oll.Protocol` namespace. See
-[`examples/Conformance/Program.cs`](examples/Conformance/Program.cs) for working
-examples of configuration functions, document reads, structured logs,
+Configuration remains authoritative in oll and is fetched when the handler asks
+for it. `GetConfigAsync`, `InvokeConfigFunctionAsync`, and `HostCallAsync` all
+create a correctly nested trace and enforce the negotiated call-depth limit.
+The generated request and response types are in `Oll.Protocol`.
+
+Respect `context.CancellationToken` in every cancellable operation:
+
+```csharp
+.Action("wait", "Wait until cancelled", async (context, _) =>
+{
+    await Task.Delay(Timeout.InfiniteTimeSpan, context.CancellationToken);
+    return new ActionResult();
+})
+```
+
+Cancellation is job-scoped. It must not stop other jobs running in the same
+plugin process. The SDK keeps the control stream responsive while a cancelled
+handler finishes. .NET cannot forcibly stop arbitrary managed code, so a handler
+that ignores cancellation may continue until oll's process-level shutdown
+deadline ends the process.
+
+### Return an expected failure
+
+Throw `ActionFailureException` when a failure is part of the action's domain,
+rather than an SDK or programming error:
+
+```csharp
+throw new ActionFailureException(new ProtocolError
+{
+    Code = ErrorCode.FailedPrecondition,
+    Message = "the plugin endpoint is not configured",
+});
+```
+
+The SDK preserves that structured error in the terminal job update. An
+unhandled exception is still caught at the action boundary and reported as
+`INTERNAL`; it does not escape as an unobserved background-task failure.
+
+### Store and return an artifact
+
+An artifact is hashed and size-checked before its first byte is sent. Pass a
+readable, seekable stream so the SDK can perform that validation without keeping
+the whole artifact in memory:
+
+```csharp
+using System.Security.Cryptography;
+using Google.Protobuf;
+using Oll.Protocol;
+
+var bytes = "artifact payload"u8.ToArray();
+var descriptor = new ArtifactDescriptor
+{
+    ArtifactId = new PluginArtifactId
+    {
+        Value = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    },
+    FileName = "result.txt",
+    MediaType = "text/plain",
+    SizeBytes = (ulong)bytes.Length,
+    Sha256 = ByteString.CopyFrom(SHA256.HashData(bytes)),
+};
+
+using var content = new MemoryStream(bytes, writable: false);
+var stored = await context.StoreArtifactAsync(descriptor, content);
+return new ActionResult(ActionResult.FromString("done").Result, [stored]);
+```
+
+The default chunk size automatically respects the host's negotiated limit; you
+can pass a smaller `chunkSize` when useful. Empty artifacts are valid. Only the
+opaque `StoredArtifact` returned after oll acknowledges storage can be included
+in `ActionResult`, which prevents a terminal result from claiming an artifact
+that was never stored.
+
+See [`examples/Conformance/Program.cs`](examples/Conformance/Program.cs) for one
+plugin that exercises configuration functions, document reads, structured logs,
 cancellation, and artifact transfer.
 
-## Protocol evolution
+## Protocol and runtime guarantees
 
-This SDK follows the canonical protobuf wire contract. It never computes,
-embeds, publishes, or compares a schema hash or fingerprint. Descriptor-wide
-hashes change for compatible additions and unrelated services, so they reject
-valid peers. Protocol changes instead preserve field numbers and wire types,
-give additions safe absent semantics, and tolerate unknown fields. Exact SDK
-pins provide reproducible builds; they are not protobuf API versioning.
+- Plugins are trusted independent child processes.
+- oll hosts the loopback gRPC server; the plugin is always the client.
+- One process can run several jobs concurrently.
+- `CancelJobRequest` affects one job; `ShutdownRequest` affects the process.
+- Parent stdin EOF is a mandatory exit signal.
+- Plugin stdout and stderr go to its per-plugin log.
+- Incoming and outgoing envelopes are limited to 64 MiB.
+- Stalled outgoing writes have a bounded admission queue.
 
-## Runtime model in one minute
-
-- Plugins are trusted, independent child processes.
-- oll hosts the loopback gRPC server; the plugin connects as a client.
-- Closing the plugin's standard input means its parent is gone, so the SDK exits.
-- One plugin process may run several jobs at the same time.
-- Job cancellation cancels only that job. Plugin shutdown is a separate request.
-- Plugin standard output and error are captured in its per-plugin log.
-
-These details mostly stay out of application code, but they explain why a
-plugin should always enter through `Plugin.RunAsync()` and be exercised through
-oll rather than launched by hand.
+The SDK follows protobuf wire compatibility directly. It does not compute,
+publish, or compare a schema fingerprint: compatible changes preserve field
+numbers and wire types, give additions safe absent semantics, and tolerate
+unknown fields. Pinning an SDK package gives a reproducible build; it is not a
+replacement for protobuf compatibility rules.
 
 ## License
 

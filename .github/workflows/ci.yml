@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Restore locked dependencies
+        run: dotnet restore dotnet-plugin-sdk.slnx --locked-mode
+      - name: Check formatting
+        run: dotnet format dotnet-plugin-sdk.slnx --no-restore --verify-no-changes
+      - name: Build
+        run: dotnet build dotnet-plugin-sdk.slnx --configuration Release --no-restore
+      - name: Test
+        run: >-
+          dotnet test tests/Onelastleaf.PluginSdk.Tests/Onelastleaf.PluginSdk.Tests.csproj
+          --configuration Release --no-build
+      - name: Pack
+        run: >-
+          dotnet pack src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj
+          --configuration Release --no-build --output artifacts
