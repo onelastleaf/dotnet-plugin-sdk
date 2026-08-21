@@ -7,6 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj" />
+    <ProjectReference Include="../../../src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj" />
   </ItemGroup>
 </Project>

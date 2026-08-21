@@ -22,12 +22,17 @@ dotnet test tests/Onelastleaf.PluginSdk.Tests/Onelastleaf.PluginSdk.Tests.csproj
 ```
 
 The library targets both .NET 8 and .NET 10, and the test suite runs against
-both targets. The conformance plugin targets .NET 10, which is why building the
-complete repository needs the .NET 10 SDK. CI runs the same format, build, test,
-and package checks with locked NuGet dependencies. If you have the .NET 10 SDK
-but not the .NET 8 runtime locally, use
+both targets. The conformance fixture targets .NET 10, which is why building
+the complete repository needs the .NET 10 SDK. CI runs the same format, build,
+test, and package checks with locked NuGet dependencies. If you have the .NET
+10 SDK but not the .NET 8 runtime locally, use
 `dotnet test ... --framework net10.0`; the solution build still compiles the
 library for net8.0.
+
+`tests/fixtures/Conformance` is test infrastructure for oll's cross-SDK
+conformance harness. It is not a user-facing example or a standalone CLI: oll
+must launch it and provide the protocol session, so running it directly will
+report that `OLL_PLUGIN_ENDPOINT` is missing.
 
 To produce a package locally:
 
@@ -36,9 +41,7 @@ dotnet pack src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj \
   --configuration Release --no-build --output artifacts
 ```
 
-The result is `artifacts/Onelastleaf.PluginSdk.0.1.0.nupkg`. The program under
-`examples/Conformance` is host-driven, not a standalone CLI. If you run it by
-hand, it will correctly report that `OLL_PLUGIN_ENDPOINT` is missing.
+The result is `artifacts/Onelastleaf.PluginSdk.0.1.0.nupkg`.
 
 ## Create your first plugin
 
@@ -217,10 +220,6 @@ can pass a smaller `chunkSize` when useful. Empty artifacts are valid. Only the
 opaque `StoredArtifact` returned after oll acknowledges storage can be included
 in `ActionResult`, which prevents a terminal result from claiming an artifact
 that was never stored.
-
-See [`examples/Conformance/Program.cs`](examples/Conformance/Program.cs) for one
-plugin that exercises configuration functions, document reads, structured logs,
-cancellation, and artifact transfer.
 
 ## Protocol and runtime guarantees
 
