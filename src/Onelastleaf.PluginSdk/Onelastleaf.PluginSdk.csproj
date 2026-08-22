@@ -7,7 +7,7 @@
     <PackageId>Onelastleaf.PluginSdk</PackageId>
     <Version>0.1.0</Version>
     <Description>.NET SDK for onelastleaf process plugins</Description>
-    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/onelastleaf/dotnet-plugin-sdk</RepositoryUrl>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

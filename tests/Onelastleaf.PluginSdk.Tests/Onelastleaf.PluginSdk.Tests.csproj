@@ -12,4 +12,11 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <ProjectReference Include="../../src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../LICENSE" Link="PackageUnderTest/LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../README.md" Link="PackageUnderTest/README.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/Onelastleaf.PluginSdk/Onelastleaf.PluginSdk.csproj"
+          Link="PackageUnderTest/Onelastleaf.PluginSdk.csproj"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

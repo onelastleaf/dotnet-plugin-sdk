@@ -240,4 +240,4 @@ replacement for protobuf compatibility rules.
 
 ## License
 
-[GPL-3.0-only](LICENSE)
+[GPL-3.0-or-later](LICENSE)
